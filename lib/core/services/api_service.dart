@@ -4,7 +4,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class ApiService with ChangeNotifier {
   final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: 'http://192.168.1.101/api/method/',
+      // baseUrl: 'http://192.168.1.101/api/method/',
+      baseUrl: 'https://0513-102-69-233-46.ngrok-free.app/api/method/',
       connectTimeout: const Duration(seconds: 60),
       receiveTimeout: const Duration(seconds: 60),
       headers: {
