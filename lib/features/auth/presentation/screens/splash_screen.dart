@@ -18,7 +18,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(seconds: 4), // 4-second animation
+      duration: const Duration(seconds: 40),
       vsync: this,
     );
     _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -26,11 +26,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
 
     _controller.forward().then((_) {
-      Future.delayed(const Duration(seconds: 1), () { // 1-second delay
-        if (mounted) {
-          context.go('/login');
-        }
-      });
+      if (mounted) {
+        context.go('/login');
+      }
     });
   }
 
@@ -58,7 +56,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               builder: (context, child) {
                 return CustomPaint(
                   size: Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.height),
-                  painter: ArchwayPainter(animationValue: _animation.value),
+                  painter: ArchwayPainter(animationValue: _animation.value, crescentScale: 1.5),
                 );
               },
             ),
@@ -66,14 +64,18 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               child: AnimatedOpacity(
                 opacity: _animation.value,
                 duration: const Duration(seconds: 4),
-                child: const Text(
-                  'Salam',
-                  style: TextStyle(
-                    fontSize: 48,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontFamily: 'Amiri', // Updated to use Amiri font
-                  ),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  width: 250,
+                  height: 250,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    debugPrint('Logo load error: $error\nStack trace: $stackTrace');
+                    return const Text(
+                      'Failed to load logo',
+                      style: TextStyle(color: Colors.red, fontSize: 20),
+                    );
+                  },
                 ),
               ),
             ),
