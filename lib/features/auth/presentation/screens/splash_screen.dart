@@ -18,7 +18,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(seconds: 40),
+      duration: const Duration(seconds: 5),
       vsync: this,
     );
     _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
