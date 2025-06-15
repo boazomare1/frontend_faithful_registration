@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:io';
 import 'dart:convert';
-
+//all the imports are necessary for the code to function correctly
 class ApiService with ChangeNotifier {
   final Dio _dio = Dio(
     BaseOptions(
