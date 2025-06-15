@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:salam/core/constants/app_colors.dart';
@@ -17,8 +18,6 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
   final Map<String, dynamic> _formData = {};
   bool _isSubmitting = false;
 
-  // Controllers for each section
-  // Personal Information
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -28,25 +27,29 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
   DateTime? _dateOfBirth;
   String? _gender;
 
-  // Community Information
   String? _mosque;
   DateTime? _dateOfJoin;
   final _gpsCoordinatesController = TextEditingController();
 
-  // Family Information
   String? _household;
   String? _maritalStatus;
   final _spouseNameController = TextEditingController();
   final _numberOfDependantsController = TextEditingController();
   final _ageOfDependantsController = TextEditingController();
 
-  // Socio-Economic Information
   String? _educationLevel;
   String? _occupation;
   final _occupationOtherController = TextEditingController();
-  final _monthlyIncomeController = TextEditingController();
+  String? _monthlyHouseholdIncome;
   String? _specialNeeds;
   final _specialNeedsProofController = TextEditingController();
+
+  final List<String> _incomeOptions = [
+    '<\$500',
+    '\$500-\$1000',
+    '\$1100-\$100000',
+    '\$10000000+',
+  ];
 
   @override
   void dispose() {
@@ -61,7 +64,6 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
     _numberOfDependantsController.dispose();
     _ageOfDependantsController.dispose();
     _occupationOtherController.dispose();
-    _monthlyIncomeController.dispose();
     _specialNeedsProofController.dispose();
     super.dispose();
   }
@@ -88,38 +90,38 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
 
   void _saveStepData(int step) {
     switch (step) {
-      case 0: // Personal
+      case 0: // Personal Information
         _formData['full_name'] = _fullNameController.text;
         _formData['email'] = _emailController.text;
         _formData['phone'] = _phoneController.text;
         _formData['date_of_birth'] = _dateOfBirth != null
             ? DateFormat('yyyy-MM-dd').format(_dateOfBirth!)
-            : '';
-        _formData['gender'] = _gender ?? '';
+            : null;
+        _formData['gender'] = _gender;
         _formData['place_of_birth'] = _placeOfBirthController.text;
         _formData['national_id_number'] = _nationalIdController.text;
         _formData['physical_address'] = _physicalAddressController.text;
         break;
-      case 1: // Community
-        _formData['mosque'] = _mosque ?? '';
+      case 1: // Community Information
+        _formData['mosque'] = _mosque;
         _formData['date_joined_community'] = _dateOfJoin != null
             ? DateFormat('yyyy-MM-dd').format(_dateOfJoin!)
-            : '';
-        _formData['gps_location'] = _gpsCoordinatesController.text;
+            : null;
+        _formData['gps_coordinates'] = _gpsCoordinatesController.text;
         break;
-      case 2: // Family
-        _formData['household'] = _household ?? '';
-        _formData['marital_status'] = _maritalStatus ?? '';
+      case 2: // Family Information
+        _formData['household'] = _household;
+        _formData['marital_status'] = _maritalStatus;
         _formData['spouse_name'] = _spouseNameController.text;
         _formData['number_of_dependants'] = _numberOfDependantsController.text;
         _formData['age_of_dependants'] = _ageOfDependantsController.text;
         break;
-      case 3: // Socio-Economic
-        _formData['education_level'] = _educationLevel ?? '';
-        _formData['occupation'] = _occupation == 'Other' ? _occupationOtherController.text : _occupation ?? '';
-        _formData['monthly_income'] = _monthlyIncomeController.text;
-        _formData['special_needs'] = _specialNeeds ?? '';
-        _formData['special_needs_proof'] = _specialNeedsProofController.text;
+      case 3: // Socio-Economic Information
+        _formData['education_level'] = _educationLevel;
+        _formData['occupation'] = _occupation == 'Other' ? _occupationOtherController.text : _occupation;
+        _formData['monthly_household_income'] = _monthlyHouseholdIncome;
+        _formData['special_needs_details'] = _specialNeeds;
+        _formData['upload_special_needs_proof'] = _specialNeedsProofController.text;
         break;
     }
   }
@@ -129,50 +131,80 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
 
     final apiService = Provider.of<ApiService>(context, listen: false);
     try {
+      final ageOfDependants = _formData['age_of_dependants'] as String?;
+      if (ageOfDependants != null && ageOfDependants.isNotEmpty) {
+        final ages = ageOfDependants.split(',').map((e) => e.trim()).toList();
+        if (ages.any((age) => !RegExp(r'^\d+$').hasMatch(age))) {
+          throw Exception('Ages of dependants must be comma-separated numbers (e.g., 6,36)');
+        }
+      }
+
+      final gpsCoordinates = _formData['gps_coordinates'] as String?;
+      if (gpsCoordinates != null && gpsCoordinates.isNotEmpty) {
+        final coords = gpsCoordinates.split(',').map((e) => e.trim()).toList();
+        if (coords.length != 2 ||
+            !RegExp(r'^-?\d+\.\d+$').hasMatch(coords[0]) ||
+            !RegExp(r'^-?\d+\.\d+$').hasMatch(coords[1])) {
+          throw Exception('GPS coordinates must be in format lat,long (e.g., -1.36578,36.56784)');
+        }
+      }
+
       final response = await apiService.registerFaithful(
         fullName: _formData['full_name'] ?? '',
         phone: _formData['phone'] ?? '',
-        physicalAddress: _formData['physical_address'] ?? '',
-        numberOfDependants: int.tryParse(_formData['number_of_dependants'] ?? '0') ?? 0,
+        physicalAddress: _formData['physical_address'],
+        numberOfDependants: int.tryParse(_formData['number_of_dependants'] ?? '0'),
         email: _formData['email'] ?? '',
         gender: _formData['gender'] ?? '',
         mosque: _formData['mosque'] ?? '',
-        household: _formData['household'] ?? '',
-        dateOfBirth: _formData['date_of_birth'] ?? '',
-        placeOfBirth: _formData['place_of_birth'] ?? '',
-        nationalIdNumber: _formData['national_id_number'] ?? '',
-        maritalStatus: _formData['marital_status'] ?? '',
-        spouseName: _formData['spouse_name'] ?? '',
-        ageOfDependants: _formData['age_of_dependants'] ?? '',
-        educationLevel: _formData['education_level'] ?? '',
-        occupation: _formData['occupation'] ?? '',
+        household: _formData['household'],
+        dateOfBirth: _formData['date_of_birth'],
+        placeOfBirth: _formData['place_of_birth'],
+        nationalIdNumber: _formData['national_id_number'],
+        maritalStatus: _formData['marital_status'],
+        spouseName: _formData['spouse_name'],
+        ageOfDependants: _formData['age_of_dependants'],
+        educationLevel: _formData['education_level'],
+        occupation: _formData['occupation'],
+        dateJoinedCommunity: _formData['date_joined_community'],
+        gpsLocation: _formData['gps_coordinates'],
+        monthlyHouseholdIncome: _formData['monthly_household_income'],
+        specialNeeds: _formData['special_needs_details'],
+        specialNeedsProof: _formData['upload_special_needs_proof'],
       );
+      print('Submit Form Response: $response');
       if (response['status'] == 'success') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Faithful registered successfully!',
-              style: TextStyle(fontFamily: 'Amiri'),
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                response['message'] ?? 'Faithful registered successfully!',
+                style: const TextStyle(fontFamily: 'Amiri'),
+              ),
+              backgroundColor: AppColors.accent,
             ),
-            backgroundColor: AppColors.accent,
-          ),
-        );
-        Navigator.pop(context); // Return to previous screen
+          );
+          context.go('/home');
+        }
       } else {
         throw Exception(response['message'] ?? 'Registration failed');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Error: $e',
-            style: const TextStyle(fontFamily: 'Amiri'),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error: $e',
+              style: const TextStyle(fontFamily: 'Amiri'),
+            ),
+            backgroundColor: Colors.redAccent,
           ),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+        );
+      }
     } finally {
-      setState(() => _isSubmitting = false);
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 
@@ -358,6 +390,12 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
                         controller: _nationalIdController,
                         decoration: _inputDecoration('National ID/Passport'),
                         style: const TextStyle(fontFamily: 'Amiri', color: Colors.black),
+                        validator: (value) {
+                          if (value != null && value.isNotEmpty && !RegExp(r'^\d+$').hasMatch(value)) {
+                            return 'Enter a valid ID number';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -423,8 +461,18 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _gpsCoordinatesController,
-                        decoration: _inputDecoration('GPS Coordinates'),
+                        decoration: _inputDecoration('GPS Coordinates (lat,long)'),
                         style: const TextStyle(fontFamily: 'Amiri', color: Colors.black),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) return null;
+                          final coords = value.split(',').map((e) => e.trim()).toList();
+                          if (coords.length != 2 ||
+                              !RegExp(r'^-?\d+\.\d+$').hasMatch(coords[0]) ||
+                              !RegExp(r'^-?\d+\.\d+$').hasMatch(coords[1])) {
+                            return 'Enter valid coordinates (e.g., -1.36578,36.56784)';
+                          }
+                          return null;
+                        },
                       ),
                     ],
                   ),
@@ -484,12 +532,27 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
                         decoration: _inputDecoration('Number of Dependants'),
                         style: const TextStyle(fontFamily: 'Amiri', color: Colors.black),
                         keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) return null;
+                          if (!RegExp(r'^\d+$').hasMatch(value)) {
+                            return 'Enter a valid number';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _ageOfDependantsController,
                         decoration: _inputDecoration('Ages of Dependants (comma-separated)'),
                         style: const TextStyle(fontFamily: 'Amiri', color: Colors.black),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) return null;
+                          final ages = value.split(',').map((e) => e.trim()).toList();
+                          if (ages.any((age) => !RegExp(r'^\d+$').hasMatch(age))) {
+                            return 'Enter valid ages (e.g., 6,36)';
+                          }
+                          return null;
+                        },
                       ),
                     ],
                   ),
@@ -544,11 +607,14 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
                         ),
                       ],
                       const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _monthlyIncomeController,
+                      DropdownButtonFormField<String>(
+                        value: _monthlyHouseholdIncome,
                         decoration: _inputDecoration('Monthly Household Income'),
                         style: const TextStyle(fontFamily: 'Amiri', color: Colors.black),
-                        keyboardType: TextInputType.number,
+                        items: _incomeOptions
+                            .map((o) => DropdownMenuItem(value: o, child: Text(o)))
+                            .toList(),
+                        onChanged: (value) => setState(() => _monthlyHouseholdIncome = value),
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(

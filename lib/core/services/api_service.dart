@@ -303,56 +303,84 @@ class ApiService with ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> registerFaithful({
-    required String fullName,
-    required String phone,
-    required String physicalAddress,
-    required int numberOfDependants,
-    required String email,
-    required String gender,
-    required String mosque,
-    required String household,
-    required String dateOfBirth,
-    required String placeOfBirth,
-    required String nationalIdNumber,
-    required String maritalStatus,
-    required String spouseName,
-    required String ageOfDependants,
-    required String educationLevel,
-    required String occupation,
-  }) async {
-    try {
-      final requestData = {
-        'data': {
-          'full_name': fullName,
-          'phone': phone,
-          'physical_address': physicalAddress,
-          'number_of_dependants': numberOfDependants,
-          'email': email,
-          'gender': gender,
-          'mosque': mosque,
-          'household': household,
-          'date_of_birth': dateOfBirth,
-          'place_of_birth': placeOfBirth,
-          'national_id_number': nationalIdNumber,
-          'marital_status': maritalStatus,
-          'spouse_name': spouseName,
-          'age_of_dependants': ageOfDependants,
-          'education_level': educationLevel,
-          'occupation': occupation,
-        }
+ Future<Map<String, dynamic>> registerFaithful({
+  required String fullName,
+  required String phone,
+  String? physicalAddress,
+  int? numberOfDependants,
+  required String email,
+  required String gender,
+  required String mosque,
+  String? household,
+  String? dateOfBirth,
+  String? placeOfBirth,
+  String? nationalIdNumber,
+  String? maritalStatus,
+  String? spouseName,
+  String? ageOfDependants,
+  String? educationLevel,
+  String? occupation,
+  String? dateJoinedCommunity,
+  String? gpsLocation,
+  String? monthlyHouseholdIncome,
+  String? specialNeeds,
+  String? specialNeedsProof,
+}) async {
+  try {
+    final requestData = {
+      'data': {
+        'full_name': fullName,
+        'phone': phone,
+        if (physicalAddress != null && physicalAddress.isNotEmpty) 'physical_address': physicalAddress,
+        if (numberOfDependants != null) 'number_of_dependants': numberOfDependants, // Back to int
+        'email': email,
+        'gender': gender,
+        'mosque': mosque,
+        if (household != null && household.isNotEmpty) 'household': household,
+        if (dateOfBirth != null && dateOfBirth.isNotEmpty) 'date_of_birth': dateOfBirth,
+        if (placeOfBirth != null && placeOfBirth.isNotEmpty) 'place_of_birth': placeOfBirth,
+        if (nationalIdNumber != null && nationalIdNumber.isNotEmpty) 'national_id_number': nationalIdNumber,
+        if (maritalStatus != null && maritalStatus.isNotEmpty) 'marital_status': maritalStatus,
+        if (spouseName != null && spouseName.isNotEmpty) 'spouse_name': spouseName,
+        if (ageOfDependants != null && ageOfDependants.isNotEmpty) 'age_of_dependants': ageOfDependants,
+        if (educationLevel != null && educationLevel.isNotEmpty) 'education_level': educationLevel,
+        if (occupation != null && occupation.isNotEmpty) 'occupation': occupation,
+        if (dateJoinedCommunity != null && dateJoinedCommunity.isNotEmpty) 'date_joined_community': dateJoinedCommunity,
+        if (gpsLocation != null && gpsLocation.isNotEmpty) 'gps_coordinates': gpsLocation,
+        if (monthlyHouseholdIncome != null && monthlyHouseholdIncome.isNotEmpty) 'monthly_household_income': monthlyHouseholdIncome,
+        if (specialNeeds != null && specialNeeds.isNotEmpty && specialNeeds != 'No') 'special_needs_details': specialNeeds,
+        if (specialNeedsProof != null && specialNeedsProof.isNotEmpty) 'upload_special_needs_proof': specialNeedsProof,
+      }
+    };
+    print('Register Faithful Request: $requestData');
+    final response = await _dio.post(
+      'faithful_registration.api.faithful.register_faithful',
+      data: requestData,
+    );
+    print('Register Faithful Response: ${response.data}');
+    final data = response.data as Map<String, dynamic>;
+    if (data['status'] == 'success') {
+      return {
+        'status': 'success',
+        'message': data['message'] ?? 'Faithful registered successfully',
+        'data': data['data'] ?? {},
       };
-      print('Register Faithful Request: $requestData');
-      final response = await _dio.post(
-        'faithful_registration.api.faithful.register_faithful',
-        data: requestData,
-      );
-      print('Register Faithful Response: ${response.data}');
-      final data = response.data as Map<String, dynamic>;
-      return data['message'] ?? {'status': 'error', 'message': 'Invalid response'};
-    } catch (e) {
-      print('Register Faithful Error: $e');
-      return {'status': 'error', 'message': 'Failed to register faithful: $e'};
     }
+    return {
+      'status': 'error',
+      'message': data['message'] ?? 'Registration failed',
+    };
+  } catch (e) {
+    if (e is DioException && e.response != null) {
+      print('Register Faithful Error: $e');
+      print('Server Response: ${e.response?.data}');
+      return {
+        'status': 'error',
+        'message': e.response?.data['message'] ?? 'Failed to register faithful: ${e.message}',
+      };
+    }
+    print('Register Faithful Error: $e');
+    return {'status': 'error', 'message': 'Failed to register faithful: $e'};
   }
+}
 }
