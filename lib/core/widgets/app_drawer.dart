@@ -8,7 +8,7 @@ class AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final storage = FlutterSecureStorage();
+    const storage = FlutterSecureStorage();
 
     return Drawer(
       child: ListView(
