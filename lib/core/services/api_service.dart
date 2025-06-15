@@ -39,6 +39,7 @@ class ApiService with ChangeNotifier {
     notifyListeners();
   }
 
+  // **Existing Authentication Methods (unchanged)**
   Future<Map<String, dynamic>> loginUser({
     required String email,
     required String password,
@@ -116,6 +117,7 @@ class ApiService with ChangeNotifier {
     }
   }
 
+  // **Existing List and Count Methods (unchanged)**
   Future<List<Map<String, dynamic>>> getAllMosques() async {
     try {
       final response = await _dio.get('faithful_registration.api.mosque.get_all_mosques');
@@ -150,7 +152,6 @@ class ApiService with ChangeNotifier {
         'faithful_registration.api.faithful.get_all_faithfuls',
         queryParameters: {'gender': 'Female'},
       );
-      print('response: ${response.data}');
       if (response.data['status'] == 'success') {
         final data = response.data['data'] as List<dynamic>;
         return data.length;
@@ -168,7 +169,6 @@ class ApiService with ChangeNotifier {
         'faithful_registration.api.faithful.get_all_faithfuls',
         queryParameters: {'gender': 'Male'},
       );
-      print('response: ${response.data}');
       if (response.data['status'] == 'success') {
         final data = response.data['data'] as List<dynamic>;
         return data.length;
@@ -306,17 +306,562 @@ class ApiService with ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>> registerFaithful({
+    required String fullName,
+    required String phone,
+    String? physicalAddress,
+    int? numberOfDependants,
+    required String email,
+    required String gender,
+    required String mosque,
+    String? household,
+    String? dateOfBirth,
+    String? placeOfBirth,
+    String? nationalIdNumber,
+    String? maritalStatus,
+    String? spouseName,
+    String? ageOfDependants,
+    String? educationLevel,
+    String? occupation,
+    String? dateJoinedCommunity,
+    String? gpsLocation,
+    String? monthlyHouseholdIncome,
+    String? specialNeeds,
+    File? specialNeedsProof,
+    File? profileImage,
+    File? nationalIdDocument,
+  }) async {
+    try {
+      final requestData = {
+        'data': {
+          'full_name': fullName,
+          'phone': phone,
+          if (physicalAddress != null && physicalAddress.isNotEmpty) 'physical_address': physicalAddress,
+          if (numberOfDependants != null) 'number_of_dependants': numberOfDependants,
+          'email': email,
+          'gender': gender,
+          'mosque': mosque,
+          if (household != null && household.isNotEmpty) 'household': household,
+          if (dateOfBirth != null && dateOfBirth.isNotEmpty) 'date_of_birth': dateOfBirth,
+          if (placeOfBirth != null && placeOfBirth.isNotEmpty) 'place_of_birth': placeOfBirth,
+          if (nationalIdNumber != null && nationalIdNumber.isNotEmpty) 'national_id_number': nationalIdNumber,
+          if (maritalStatus != null && maritalStatus.isNotEmpty) 'marital_status': maritalStatus,
+          if (spouseName != null && spouseName.isNotEmpty) 'spouse_name': spouseName,
+          if (ageOfDependants != null && ageOfDependants.isNotEmpty) 'age_of_dependants': ageOfDependants,
+          if (educationLevel != null && educationLevel.isNotEmpty) 'education_level': educationLevel,
+          if (occupation != null && occupation.isNotEmpty) 'occupation': occupation,
+          if (dateJoinedCommunity != null && dateJoinedCommunity.isNotEmpty) 'date_joined_community': dateJoinedCommunity,
+          if (gpsLocation != null && gpsLocation.isNotEmpty) 'gps_coordinates': gpsLocation,
+          if (monthlyHouseholdIncome != null && monthlyHouseholdIncome.isNotEmpty)
+            'monthly_household_income': _normalizeIncome(monthlyHouseholdIncome),
+          if (specialNeeds != null && specialNeeds.isNotEmpty) 'special_needs': specialNeeds,
+          if (specialNeedsProof != null)
+            'special_needs_proof': _encodeFile(specialNeedsProof, 'Special Needs Proof'),
+          if (profileImage != null)
+            'profile_image': _encodeFile(profileImage, 'Profile Image'),
+          if (nationalIdDocument != null)
+            'national_id_document': _encodeFile(nationalIdDocument, 'National ID Document'),
+        }
+      };
+      print('Register Faithful Request: $requestData');
+      final response = await _dio.post(
+        'faithful_registration.api.faithful.register_faithful',
+        data: requestData,
+      );
+      print('Register Faithful Response: ${response.data}');
+      final data = response.data as Map<String, dynamic>;
+      if (data['status'] == 'success') {
+        return {
+          'status': 'success',
+          'message': data['message'] ?? 'Faithful registered successfully',
+          'data': data['data'] ?? {},
+        };
+      }
+      return {
+        'status': 'error',
+        'message': data['errors']?['description'] ?? data['message'] ?? 'Registration failed',
+      };
+    } catch (e) {
+      if (e is DioException && e.response != null) {
+        print('Register Faithful Error: $e');
+        print('Server Response: ${e.response?.data}');
+        final errorData = e.response?.data as Map<String, dynamic>?;
+        return {
+          'status': 'error',
+          'message': errorData?['errors']?['description'] ?? errorData?['message'] ?? 'Failed to register faithful: ${e.message}',
+        };
+      }
+      print('Register Faithful Error: $e');
+      return {'status': 'error', 'message': 'Failed to register faithful: $e'};
+    }
+  }
+
+  // **New Mosque Operations**
+  Future<Map<String, dynamic>> registerMosque({
+    required String mosqueName,
+    required String location,
+    required String dateEstablished,
+    required String headImam,
+    required int totalCapacity,
+    required String contactEmail,
+    required String contactPhone,
+  }) async {
+    try {
+      final requestData = {
+        'data': {
+          'mosque_name': mosqueName,
+          'location': location,
+          'date_established': dateEstablished,
+          'head_imam': headImam,
+          'total_capacity': totalCapacity,
+          'contact_email': contactEmail,
+          'contact_phone': contactPhone,
+        }
+      };
+      final response = await _dio.post(
+        'faithful_registration.api.mosque.register_mosque',
+        data: requestData,
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'status': data['status'] ?? 'error',
+        'message': data['message'] ?? 'Invalid response',
+        'data': data['data'] ?? {},
+      };
+    } catch (e) {
+      print('Register Mosque Error: $e');
+      return {'status': 'error', 'message': 'Failed to register mosque: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> getMosque({required String name}) async {
+    try {
+      final response = await _dio.get(
+        'faithful_registration.api.mosque.get_mosque',
+        queryParameters: {'name': name},
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'status': data['status'] ?? 'error',
+        'message': data['message'] ?? 'Invalid response',
+        'data': data['data'] ?? {},
+      };
+    } catch (e) {
+      print('Get Mosque Error: $e');
+      return {'status': 'error', 'message': 'Failed to get mosque: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateMosque({
+    required String name,
+    required String mosqueName,
+    required String location,
+    required String dateEstablished,
+    required String headImam,
+    required int totalCapacity,
+    required String contactEmail,
+    required String contactPhone,
+  }) async {
+    try {
+      final requestData = {
+        'data': {
+          'name': name,
+          'mosque_name': mosqueName,
+          'location': location,
+          'date_established': dateEstablished,
+          'head_imam': headImam,
+          'total_capacity': totalCapacity,
+          'contact_email': contactEmail,
+          'contact_phone': contactPhone,
+        }
+      };
+      final response = await _dio.post(
+        'faithful_registration.api.mosque.update_mosque',
+        data: requestData,
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'status': data['status'] ?? 'error',
+        'message': data['message'] ?? 'Invalid response',
+        'data': data['data'] ?? {},
+      };
+    } catch (e) {
+      print('Update Mosque Error: $e');
+      return {'status': 'error', 'message': 'Failed to update mosque: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteMosque({required String name}) async {
+    try {
+      final response = await _dio.post(
+        'faithful_registration.api.mosque.delete_mosque',
+        queryParameters: {'name': name},
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'status': data['status'] ?? 'error',
+        'message': data['message'] ?? 'Invalid response',
+      };
+    } catch (e) {
+      print('Delete Mosque Error: $e');
+      return {'status': 'error', 'message': 'Failed to delete mosque: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> bulkRegisterMosques({required File file}) async {
+    try {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(file.path, filename: file.path.split('/').last),
+      });
+      final response = await _dio.post(
+        'faithful_registration.api.mosque.bulk_register_mosques',
+        data: formData,
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'status': data['status'] ?? 'error',
+        'message': data['message'] ?? 'Invalid response',
+        'data': data['data'] ?? {},
+      };
+    } catch (e) {
+      print('Bulk Register Mosques Error: $e');
+      return {'status': 'error', 'message': 'Failed to bulk register mosques: $e'};
+    }
+  }
+
+  // **New Household Operations**
+  Future<Map<String, dynamic>> createHousehold({
+    required String householdName,
+    required String headOfHousehold,
+    required String addressLine,
+    required String mosque,
+    required int totalMembers,
+  }) async {
+    try {
+      final requestData = {
+        'data': {
+          'household_name': householdName,
+          'head_of_household': headOfHousehold,
+          'address_line': addressLine,
+          'mosque': mosque,
+          'total_members': totalMembers,
+        }
+      };
+      final response = await _dio.post(
+        'faithful_registration.api.household.create_household',
+        data: requestData,
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'status': data['status'] ?? 'error',
+        'message': data['message'] ?? 'Invalid response',
+        'data': data['data'] ?? {},
+      };
+    } catch (e) {
+      print('Create Household Error: $e');
+      return {'status': 'error', 'message': 'Failed to create household: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> getHousehold({required String name}) async {
+    try {
+      final response = await _dio.get(
+        'faithful_registration.api.household.get_household',
+        queryParameters: {'name': name},
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'status': data['status'] ?? 'error',
+        'message': data['message'] ?? 'Invalid response',
+        'data': data['data'] ?? {},
+      };
+    } catch (e) {
+      print('Get Household Error: $e');
+      return {'status': 'error', 'message': 'Failed to get household: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateHousehold({
+    required String name,
+    required String householdName,
+    required String headOfHousehold,
+    required String addressLine,
+    required String mosque,
+    required int totalMembers,
+  }) async {
+    try {
+      final requestData = {
+        'data': {
+          'name': name,
+          'household_name': householdName,
+          'head_of_household': headOfHousehold,
+          'address_line': addressLine,
+          'mosque': mosque,
+          'total_members': totalMembers,
+        }
+      };
+      final response = await _dio.post(
+        'faithful_registration.api.household.update_household',
+        data: requestData,
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'status': data['status'] ?? 'error',
+        'message': data['message'] ?? 'Invalid response',
+        'data': data['data'] ?? {},
+      };
+    } catch (e) {
+      print('Update Household Error: $e');
+      return {'status': 'error', 'message': 'Failed to update household: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteHousehold({required String name}) async {
+    try {
+      final response = await _dio.post(
+        'faithful_registration.api.household.delete_household',
+        queryParameters: {'name': name},
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'status': data['status'] ?? 'error',
+        'message': data['message'] ?? 'Invalid response',
+      };
+    } catch (e) {
+      print('Delete Household Error: $e');
+      return {'status': 'error', 'message': 'Failed to delete household: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> bulkRegisterHouseholds({required File file}) async {
+    try {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(file.path, filename: file.path.split('/').last),
+      });
+      final response = await _dio.post(
+        'faithful_registration.api.household.bulk_register_households',
+        data: formData,
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'status': data['status'] ?? 'error',
+        'message': data['message'] ?? 'Invalid response',
+        'data': data['data'] ?? {},
+      };
+    } catch (e) {
+      print('Bulk Register Households Error: $e');
+      return {'status': 'error', 'message': 'Failed to bulk register households: $e'};
+    }
+  }
+
+  // **New Faithful Operations**
+  Future<List<Map<String, dynamic>>> getAllFaithfuls({
+    String? mosque,
+    String? gender,
+    String? household,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (mosque != null) queryParams['mosque'] = mosque;
+      if (gender != null) queryParams['gender'] = gender;
+      if (household != null) queryParams['household'] = household;
+      final response = await _dio.get(
+        'faithful_registration.api.faithful.get_all_faithfuls',
+        queryParameters: queryParams,
+      );
+      if (response.data['status'] == 'success') {
+        final data = response.data['data'] as List<dynamic>;
+        return data.isNotEmpty ? data.cast<Map<String, dynamic>>() : [];
+      }
+      return [];
+    } catch (e) {
+      print('Get All Faithfuls Error: $e');
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> updateFaithful({
+    required String name,
+    required String fullName,
+    required String phone,
+    String? physicalAddress,
+    int? numberOfDependants,
+    required String email,
+    required String gender,
+    required String mosque,
+    String? household,
+    String? dateOfBirth,
+    String? placeOfBirth,
+    String? nationalIdNumber,
+    String? maritalStatus,
+    String? spouseName,
+    String? ageOfDependants,
+    String? educationLevel,
+    String? occupation,
+    String? dateJoinedCommunity,
+    String? gpsLocation,
+    String? monthlyHouseholdIncome,
+    String? specialNeeds,
+    File? specialNeedsProof,
+    File? profileImage,
+    File? nationalIdDocument,
+  }) async {
+    try {
+      final requestData = {
+        'data': {
+          'name': name,
+          'full_name': fullName,
+          'phone': phone,
+          if (physicalAddress != null && physicalAddress.isNotEmpty) 'physical_address': physicalAddress,
+          if (numberOfDependants != null) 'number_of_dependants': numberOfDependants,
+          'email': email,
+          'gender': gender,
+          'mosque': mosque,
+          if (household != null && household.isNotEmpty) 'household': household,
+          if (dateOfBirth != null && dateOfBirth.isNotEmpty) 'date_of_birth': dateOfBirth,
+          if (placeOfBirth != null && placeOfBirth.isNotEmpty) 'place_of_birth': placeOfBirth,
+          if (nationalIdNumber != null && nationalIdNumber.isNotEmpty) 'national_id_number': nationalIdNumber,
+          if (maritalStatus != null && maritalStatus.isNotEmpty) 'marital_status': maritalStatus,
+          if (spouseName != null && spouseName.isNotEmpty) 'spouse_name': spouseName,
+          if (ageOfDependants != null && ageOfDependants.isNotEmpty) 'age_of_dependants': ageOfDependants,
+          if (educationLevel != null && educationLevel.isNotEmpty) 'education_level': educationLevel,
+          if (occupation != null && occupation.isNotEmpty) 'occupation': occupation,
+          if (dateJoinedCommunity != null && dateJoinedCommunity.isNotEmpty) 'date_joined_community': dateJoinedCommunity,
+          if (gpsLocation != null && gpsLocation.isNotEmpty) 'gps_coordinates': gpsLocation,
+          if (monthlyHouseholdIncome != null && monthlyHouseholdIncome.isNotEmpty)
+            'monthly_household_income': _normalizeIncome(monthlyHouseholdIncome),
+          if (specialNeeds != null && specialNeeds.isNotEmpty) 'special_needs': specialNeeds,
+          if (specialNeedsProof != null)
+            'special_needs_proof': _encodeFile(specialNeedsProof, 'Special Needs Proof'),
+          if (profileImage != null)
+            'profile_image': _encodeFile(profileImage, 'Profile Image'),
+          if (nationalIdDocument != null)
+            'national_id_document': _encodeFile(nationalIdDocument, 'National ID Document'),
+        }
+      };
+      final response = await _dio.post(
+        'faithful_registration.api.faithful.update_faithful',
+        data: requestData,
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'status': data['status'] ?? 'error',
+        'message': data['message'] ?? 'Invalid response',
+        'data': data['data'] ?? {},
+      };
+    } catch (e) {
+      print('Update Faithful Error: $e');
+      return {'status': 'error', 'message': 'Failed to update faithful: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteFaithful({required String name}) async {
+    try {
+      final response = await _dio.post(
+        'faithful_registration.api.faithful.delete_faithful',
+        queryParameters: {'name': name},
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'status': data['status'] ?? 'error',
+        'message': data['message'] ?? 'Invalid response',
+      };
+    } catch (e) {
+      print('Delete Faithful Error: $e');
+      return {'status': 'error', 'message': 'Failed to delete faithful: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> bulkUploadFaithfuls({required File file}) async {
+    try {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(file.path, filename: file.path.split('/').last),
+      });
+      final response = await _dio.post(
+        'faithful_registration.api.faithful.bulk_upload_faithfuls',
+        data: formData,
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'status': data['status'] ?? 'error',
+        'message': data['message'] ?? 'Invalid response',
+        'data': data['data'] ?? {},
+      };
+    } catch (e) {
+      print('Bulk Upload Faithfuls Error: $e');
+      return {'status': 'error', 'message': 'Failed to bulk upload faithfuls: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> reassignFaithful({
+    required String faithfulId,
+    required String newMosque,
+    required String newHousehold,
+    required String reason,
+  }) async {
+    try {
+      final requestData = {
+        'data': {
+          'faithful_id': faithfulId,
+          'new_mosque': newMosque,
+          'new_household': newHousehold,
+          'reason': reason,
+        }
+      };
+      final response = await _dio.post(
+        'faithful_registration.api.faithful.reassign_faithful',
+        data: requestData,
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'status': data['status'] ?? 'error',
+        'message': data['message'] ?? 'Invalid response',
+        'data': data['data'] ?? {},
+      };
+    } catch (e) {
+      print('Reassign Faithful Error: $e');
+      return {'status': 'error', 'message': 'Failed to reassign faithful: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> unassignFaithful({
+    required String faithfulId,
+    required String mosqueId,
+    required String reason,
+  }) async {
+    try {
+      final queryParams = {
+        'faithful_id': faithfulId,
+        'mosque_id': mosqueId,
+        'reason': reason,
+      };
+      final response = await _dio.get(
+        'faithful_registration.api.faithful.unassign_faithful',
+        queryParameters: queryParams,
+      );
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'status': data['status'] ?? 'error',
+        'message': data['message'] ?? 'Invalid response',
+        'data': data['data'] ?? {},
+      };
+    } catch (e) {
+      print('Unassign Faithful Error: $e');
+      return {'status': 'error', 'message': 'Failed to unassign faithful: $e'};
+    }
+  }
+
+  // **Helper Methods (unchanged)**
   String _normalizeIncome(String? income) {
-  if (income == null || income.isEmpty) return '';
-  // ignore: unnecessary_string_escapes
-  const incomeMap = {
-    r'<$500': r'<$500',
-    r'$500-$1000': r'$500-$1000',
-    r'$1100-$100000': r'$1100-$100000',
-    r'$10000000+': r'$10000000+',
-  };
-  return incomeMap[income] ?? income;
-}
+    if (income == null || income.isEmpty) return '';
+    const incomeMap = {
+      r'<$500': r'<$500',
+      r'$500-$1000': r'$500-$1000',
+      r'$1100-$100000': r'$1100-$100000',
+      r'$10000000+': r'$10000000+',
+    };
+    return incomeMap[income] ?? income;
+  }
 
   String? _encodeFile(File? file, String field) {
     if (file == null) return null;
@@ -343,94 +888,4 @@ class ApiService with ChangeNotifier {
     }
     return 'data:$mimeType;base64,${base64Encode(bytes)}';
   }
-
-  Future<Map<String, dynamic>> registerFaithful({
-  required String fullName,
-  required String phone,
-  String? physicalAddress,
-  int? numberOfDependants,
-  required String email,
-  required String gender,
-  required String mosque,
-  String? household,
-  String? dateOfBirth,
-  String? placeOfBirth,
-  String? nationalIdNumber,
-  String? maritalStatus,
-  String? spouseName,
-  String? ageOfDependants,
-  String? educationLevel,
-  String? occupation,
-  String? dateJoinedCommunity,
-  String? gpsLocation,
-  String? monthlyHouseholdIncome,
-  String? specialNeeds,
-  File? specialNeedsProof,
-  File? profileImage,
-  File? nationalIdDocument,
-}) async {
-  try {
-    final requestData = {
-      'data': {
-        'full_name': fullName,
-        'phone': phone,
-        if (physicalAddress != null && physicalAddress.isNotEmpty) 'physical_address': physicalAddress,
-        if (numberOfDependants != null) 'number_of_dependants': numberOfDependants,
-        'email': email,
-        'gender': gender,
-        'mosque': mosque,
-        if (household != null && household.isNotEmpty) 'household': household,
-        if (dateOfBirth != null && dateOfBirth.isNotEmpty) 'date_of_birth': dateOfBirth,
-        if (placeOfBirth != null && placeOfBirth.isNotEmpty) 'place_of_birth': placeOfBirth,
-        if (nationalIdNumber != null && nationalIdNumber.isNotEmpty) 'national_id_number': nationalIdNumber,
-        if (maritalStatus != null && maritalStatus.isNotEmpty) 'marital_status': maritalStatus,
-        if (spouseName != null && spouseName.isNotEmpty) 'spouse_name': spouseName,
-        if (ageOfDependants != null && ageOfDependants.isNotEmpty) 'age_of_dependants': ageOfDependants,
-        if (educationLevel != null && educationLevel.isNotEmpty) 'education_level': educationLevel,
-        if (occupation != null && occupation.isNotEmpty) 'occupation': occupation,
-        if (dateJoinedCommunity != null && dateJoinedCommunity.isNotEmpty) 'date_joined_community': dateJoinedCommunity,
-        if (gpsLocation != null && gpsLocation.isNotEmpty) 'gps_coordinates': gpsLocation,
-        if (monthlyHouseholdIncome != null && monthlyHouseholdIncome.isNotEmpty)
-          'monthly_household_income': _normalizeIncome(monthlyHouseholdIncome),
-        if (specialNeeds != null && specialNeeds.isNotEmpty) 'special_needs': specialNeeds,
-        if (specialNeedsProof != null)
-          'special_needs_proof': _encodeFile(specialNeedsProof, 'Special Needs Proof'),
-        if (profileImage != null)
-          'profile_image': _encodeFile(profileImage, 'Profile Image'),
-        if (nationalIdDocument != null)
-          'national_id_document': _encodeFile(nationalIdDocument, 'National ID Document'),
-      }
-    };
-    print('Register Faithful Request: $requestData');
-    final response = await _dio.post(
-      'faithful_registration.api.faithful.register_faithful',
-      data: requestData,
-    );
-    print('Register Faithful Response: ${response.data}');
-    final data = response.data as Map<String, dynamic>;
-    if (data['status'] == 'success') {
-      return {
-        'status': 'success',
-        'message': data['message'] ?? 'Faithful registered successfully',
-        'data': data['data'] ?? {},
-      };
-    }
-    return {
-      'status': 'error',
-      'message': data['errors']?['description'] ?? data['message'] ?? 'Registration failed',
-    };
-  } catch (e) {
-    if (e is DioException && e.response != null) {
-      print('Register Faithful Error: $e');
-      print('Server Response: ${e.response?.data}');
-      final errorData = e.response?.data as Map<String, dynamic>?;
-      return {
-        'status': 'error',
-        'message': errorData?['errors']?['description'] ?? errorData?['message'] ?? 'Failed to register faithful: ${e.message}',
-      };
-    }
-    print('Register Faithful Error: $e');
-    return {'status': 'error', 'message': 'Failed to register faithful: $e'};
-  }
-}
 }
