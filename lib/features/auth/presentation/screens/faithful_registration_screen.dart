@@ -1,9 +1,13 @@
+
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:salam/core/constants/app_colors.dart';
 import 'package:salam/core/services/api_service.dart';
+import 'package:salam/features/auth/presentation/screens/home_screen.dart';
 
 class FaithfulRegistrationScreen extends StatefulWidget {
   const FaithfulRegistrationScreen({super.key});
@@ -42,13 +46,15 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
   final _occupationOtherController = TextEditingController();
   String? _monthlyHouseholdIncome;
   String? _specialNeeds;
-  final _specialNeedsProofController = TextEditingController();
+  File? _specialNeedsProof;
+  File? _profileImage;
+  File? _nationalIdDocument;
 
   final List<String> _incomeOptions = [
-    '<\$500',
-    '\$500-\$1000',
-    '\$1100-\$100000',
-    '\$10000000+',
+    r'<$500',
+    r'$500-$1000',
+    r'$1100-$100000',
+    r'$10000000+',
   ];
 
   @override
@@ -64,18 +70,20 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
     _numberOfDependantsController.dispose();
     _ageOfDependantsController.dispose();
     _occupationOtherController.dispose();
-    _specialNeedsProofController.dispose();
     super.dispose();
   }
 
   Future<void> _selectDate(BuildContext context, bool isBirth) async {
+    final now = DateTime.now();
+    final initialDate = isBirth
+        ? now.subtract(const Duration(days: 365 * 18)) // Minimum 18 years ago
+        : now;
+    final firstDate = isBirth ? DateTime(1900) : DateTime(2000);
     final picked = await showDatePicker(
       context: context,
-      initialDate: isBirth
-          ? DateTime.now().subtract(const Duration(days: 365 * 18))
-          : DateTime.now(),
-      firstDate: isBirth ? DateTime(1900) : DateTime(2000),
-      lastDate: DateTime.now(),
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: now,
     );
     if (picked != null) {
       setState(() {
@@ -85,6 +93,48 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
           _dateOfJoin = picked;
         }
       });
+    }
+  }
+
+  Future<void> _pickFile(BuildContext context, String field) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['png', 'jpg', 'jpeg', 'pdf'],
+      withData: true,
+    );
+    if (result != null && result.files.isNotEmpty) {
+      final file = File(result.files.single.path!);
+      final maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.lengthSync() > maxSize) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '$field file size exceeds 5MB limit',
+              style: const TextStyle(fontFamily: 'Amiri'),
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+      setState(() {
+        if (field == 'Profile Image') {
+          _profileImage = file;
+        } else if (field == 'National ID Document') {
+          _nationalIdDocument = file;
+        } else if (field == 'Special Needs Proof') {
+          _specialNeedsProof = file;
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$field selected',
+            style: const TextStyle(fontFamily: 'Amiri'),
+          ),
+          backgroundColor: AppColors.accent,
+        ),
+      );
     }
   }
 
@@ -101,6 +151,8 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
         _formData['place_of_birth'] = _placeOfBirthController.text;
         _formData['national_id_number'] = _nationalIdController.text;
         _formData['physical_address'] = _physicalAddressController.text;
+        _formData['profile_image'] = _profileImage;
+        _formData['national_id_document'] = _nationalIdDocument;
         break;
       case 1: // Community Information
         _formData['mosque'] = _mosque;
@@ -120,94 +172,110 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
         _formData['education_level'] = _educationLevel;
         _formData['occupation'] = _occupation == 'Other' ? _occupationOtherController.text : _occupation;
         _formData['monthly_household_income'] = _monthlyHouseholdIncome;
-        _formData['special_needs_details'] = _specialNeeds;
-        _formData['upload_special_needs_proof'] = _specialNeedsProofController.text;
+        _formData['special_needs'] = _specialNeeds;
+        _formData['special_needs_proof'] = _specialNeedsProof;
         break;
     }
   }
 
-  Future<void> _submitForm() async {
-    setState(() => _isSubmitting = true);
+ Future<void> _submitForm() async {
+  setState(() => _isSubmitting = true);
 
-    final apiService = Provider.of<ApiService>(context, listen: false);
-    try {
-      final ageOfDependants = _formData['age_of_dependants'] as String?;
-      if (ageOfDependants != null && ageOfDependants.isNotEmpty) {
-        final ages = ageOfDependants.split(',').map((e) => e.trim()).toList();
-        if (ages.any((age) => !RegExp(r'^\d+$').hasMatch(age))) {
-          throw Exception('Ages of dependants must be comma-separated numbers (e.g., 6,36)');
-        }
+  final apiService = Provider.of<ApiService>(context, listen: false);
+  try {
+    final ageOfDependants = _formData['age_of_dependants'] as String?;
+    if (ageOfDependants != null && ageOfDependants.isNotEmpty) {
+      final ages = ageOfDependants.split(',').map((e) => e.trim()).toList();
+      if (ages.any((age) => !RegExp(r'^\d+$').hasMatch(age))) {
+        throw Exception('Ages of dependants must be comma-separated numbers (e.g., 6,36)');
       }
+    }
 
-      final gpsCoordinates = _formData['gps_coordinates'] as String?;
-      if (gpsCoordinates != null && gpsCoordinates.isNotEmpty) {
-        final coords = gpsCoordinates.split(',').map((e) => e.trim()).toList();
-        if (coords.length != 2 ||
-            !RegExp(r'^-?\d+\.\d+$').hasMatch(coords[0]) ||
-            !RegExp(r'^-?\d+\.\d+$').hasMatch(coords[1])) {
-          throw Exception('GPS coordinates must be in format lat,long (e.g., -1.36578,36.56784)');
-        }
+    final gpsCoordinates = _formData['gps_coordinates'] as String?;
+    if (gpsCoordinates != null && gpsCoordinates.isNotEmpty) {
+      final coords = gpsCoordinates.split(',').map((e) => e.trim()).toList();
+      if (coords.length != 2 ||
+          !RegExp(r'^-?\d+\.\d+$').hasMatch(coords[0]) ||
+          !RegExp(r'^-?\d+\.\d+$').hasMatch(coords[1])) {
+        throw Exception('GPS coordinates must be in format lat,long (e.g., -1.36578,36.56784)');
       }
+    }
 
-      final response = await apiService.registerFaithful(
-        fullName: _formData['full_name'] ?? '',
-        phone: _formData['phone'] ?? '',
-        physicalAddress: _formData['physical_address'],
-        numberOfDependants: int.tryParse(_formData['number_of_dependants'] ?? '0'),
-        email: _formData['email'] ?? '',
-        gender: _formData['gender'] ?? '',
-        mosque: _formData['mosque'] ?? '',
-        household: _formData['household'],
-        dateOfBirth: _formData['date_of_birth'],
-        placeOfBirth: _formData['place_of_birth'],
-        nationalIdNumber: _formData['national_id_number'],
-        maritalStatus: _formData['marital_status'],
-        spouseName: _formData['spouse_name'],
-        ageOfDependants: _formData['age_of_dependants'],
-        educationLevel: _formData['education_level'],
-        occupation: _formData['occupation'],
-        dateJoinedCommunity: _formData['date_joined_community'],
-        gpsLocation: _formData['gps_coordinates'],
-        monthlyHouseholdIncome: _formData['monthly_household_income'],
-        specialNeeds: _formData['special_needs_details'],
-        specialNeedsProof: _formData['upload_special_needs_proof'],
-      );
-      print('Submit Form Response: $response');
-      if (response['status'] == 'success') {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                response['message'] ?? 'Faithful registered successfully!',
-                style: const TextStyle(fontFamily: 'Amiri'),
-              ),
-              backgroundColor: AppColors.accent,
-            ),
-          );
-          context.go('/home');
-        }
-      } else {
-        throw Exception(response['message'] ?? 'Registration failed');
-      }
-    } catch (e) {
+    if (_dateOfBirth != null && _dateOfBirth!.isAfter(DateTime.now().subtract(const Duration(days: 365 * 18)))) {
+      throw Exception('Date of Birth must be at least 18 years ago');
+    }
+
+    final response = await apiService.registerFaithful(
+      fullName: _formData['full_name'] ?? '',
+      phone: _formData['phone'] ?? '',
+      physicalAddress: _formData['physical_address'],
+      numberOfDependants: int.tryParse(_formData['number_of_dependants'] ?? '0'),
+      email: _formData['email'] ?? '',
+      gender: _formData['gender'] ?? '',
+      mosque: _formData['mosque'] ?? '',
+      household: _formData['household'],
+      dateOfBirth: _formData['date_of_birth'],
+      placeOfBirth: _formData['place_of_birth'],
+      nationalIdNumber: _formData['national_id_number'],
+      maritalStatus: _formData['marital_status'],
+      spouseName: _formData['spouse_name'],
+      ageOfDependants: _formData['age_of_dependants'],
+      educationLevel: _formData['education_level'],
+      occupation: _formData['occupation'],
+      dateJoinedCommunity: _formData['date_joined_community'],
+      gpsLocation: _formData['gps_coordinates'],
+      monthlyHouseholdIncome: _formData['monthly_household_income'],
+      specialNeeds: _formData['special_needs'],
+      specialNeedsProof: _formData['special_needs_proof'],
+      profileImage: _formData['profile_image'],
+      nationalIdDocument: _formData['national_id_document'],
+    );
+    print('Submit Form Response: $response');
+    if (response['status'] == 'success') {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Success', style: TextStyle(fontFamily: 'Amiri')),
             content: Text(
-              'Error: $e',
+              response['message'] ?? 'Faithful registered successfully!',
               style: const TextStyle(fontFamily: 'Amiri'),
             ),
-            backgroundColor: Colors.redAccent,
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  context.go('/home'); // Navigate to HomeScreen
+                  HomeScreen.switchToHome(); // Switch to Home tab
+                  print('Navigating to /home, targeting Home tab (index 0)');
+                },
+                child: const Text('OK', style: TextStyle(fontFamily: 'Amiri', color: AppColors.accent)),
+              ),
+            ],
           ),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+    } else {
+      throw Exception(response['message'] ?? 'Registration failed');
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error: $e',
+            style: const TextStyle(fontFamily: 'Amiri'),
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isSubmitting = false);
     }
   }
-
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -356,7 +424,7 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
                         onTap: () => _selectDate(context, true),
                         child: AbsorbPointer(
                           child: TextFormField(
-                            decoration: _inputDecoration('Date of Birth').copyWith(
+                            decoration: _inputDecoration('Date of Birth *').copyWith(
                               suffixIcon: const Icon(Icons.calendar_today, color: AppColors.accent),
                             ),
                             style: const TextStyle(fontFamily: 'Amiri', color: Colors.black),
@@ -365,6 +433,7 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
                                   ? DateFormat('yyyy-MM-dd').format(_dateOfBirth!)
                                   : '',
                             ),
+                            validator: (value) => _dateOfBirth == null ? 'Date of Birth is required' : null,
                           ),
                         ),
                       ),
@@ -403,6 +472,30 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
                         decoration: _inputDecoration('Physical Address'),
                         style: const TextStyle(fontFamily: 'Amiri', color: Colors.black),
                         maxLines: 2,
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: () => _pickFile(context, 'Profile Image'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text(
+                          'Upload Profile Image',
+                          style: TextStyle(fontFamily: 'Amiri', color: AppColors.primary),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton(
+                        onPressed: () => _pickFile(context, 'National ID Document'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text(
+                          'Upload ID Document',
+                          style: TextStyle(fontFamily: 'Amiri', color: AppColors.primary),
+                        ),
                       ),
                     ],
                   ),
@@ -455,6 +548,7 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
                                   ? DateFormat('yyyy-MM-dd').format(_dateOfJoin!)
                                   : '',
                             ),
+                            validator: (value) => _dateOfJoin == null ? 'Date Joined is required' : null,
                           ),
                         ),
                       ),
@@ -628,10 +722,16 @@ class _FaithfulRegistrationScreenState extends State<FaithfulRegistrationScreen>
                       ),
                       if (_specialNeeds == 'Yes') ...[
                         const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _specialNeedsProofController,
-                          decoration: _inputDecoration('Special Needs Proof (File Path)'),
-                          style: const TextStyle(fontFamily: 'Amiri', color: Colors.black),
+                        ElevatedButton(
+                          onPressed: () => _pickFile(context, 'Special Needs Proof'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accent,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text(
+                            'Upload Proof',
+                            style: TextStyle(fontFamily: 'Amiri', color: AppColors.primary),
+                          ),
                         ),
                       ],
                     ],

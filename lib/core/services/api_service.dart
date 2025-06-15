@@ -1,11 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:io';
+import 'dart:convert';
+
 class ApiService with ChangeNotifier {
   final Dio _dio = Dio(
     BaseOptions(
       baseUrl: 'http://192.168.1.101/api/method/',
-      // baseUrl: 'https://0513-102-69-233-46.ngrok-free.app/api/method/',
       connectTimeout: const Duration(seconds: 60),
       receiveTimeout: const Duration(seconds: 60),
       headers: {
@@ -15,27 +17,27 @@ class ApiService with ChangeNotifier {
     ),
   );
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
-    String? _sid;
+  String? _sid;
 
-    ApiService() {
-      _init();
-    }
+  ApiService() {
+    _init();
+  }
 
-    Future<void> _init() async {
-      _sid = await _storage.read(key: 'sid');
-      if (_sid != null) {
-        _dio.options.headers['Cookie'] = 'sid=$_sid'; // or 'X-Session-Id': _sid
-        print('Loaded sid: $_sid');
-      }
+  Future<void> _init() async {
+    _sid = await _storage.read(key: 'sid');
+    if (_sid != null) {
+      _dio.options.headers['Cookie'] = 'sid=$_sid';
+      print('Loaded sid: $_sid');
     }
+  }
 
-    void setSid(String sid) async {
-      _sid = sid;
-      _dio.options.headers['Cookie'] = 'sid=$_sid'; // or 'X-Session-Id': sid
-      await _storage.write(key: 'sid', value: sid);
-      print('Set sid: $sid');
-      notifyListeners();
-    }
+  void setSid(String sid) async {
+    _sid = sid;
+    _dio.options.headers['Cookie'] = 'sid=$_sid';
+    await _storage.write(key: 'sid', value: sid);
+    print('Set sid: $sid');
+    notifyListeners();
+  }
 
   Future<Map<String, dynamic>> loginUser({
     required String email,
@@ -114,7 +116,7 @@ class ApiService with ChangeNotifier {
     }
   }
 
-   Future<List<Map<String, dynamic>>> getAllMosques() async {
+  Future<List<Map<String, dynamic>>> getAllMosques() async {
     try {
       final response = await _dio.get('faithful_registration.api.mosque.get_all_mosques');
       if (response.data['status'] == 'success') {
@@ -142,7 +144,7 @@ class ApiService with ChangeNotifier {
     }
   }
 
-    Future<int> getFemaleCount() async {
+  Future<int> getFemaleCount() async {
     try {
       final response = await _dio.get(
         'faithful_registration.api.faithful.get_all_faithfuls',
@@ -155,7 +157,7 @@ class ApiService with ChangeNotifier {
       }
       return 0;
     } catch (e) {
-      print('Get Female Count Error: $e}');
+      print('Get Female Count Error: $e');
       return 0;
     }
   }
@@ -173,12 +175,12 @@ class ApiService with ChangeNotifier {
       }
       return 0;
     } catch (e) {
-      print('Get Male Count Error: $e}');
+      print('Get Male Count Error: $e');
       return 0;
     }
   }
 
-    Future<int> getWithHouseholdCount() async {
+  Future<int> getWithHouseholdCount() async {
     try {
       final response = await _dio.get('faithful_registration.api.faithful.get_all_faithfuls');
       if (response.data['status'] == 'success') {
@@ -206,7 +208,7 @@ class ApiService with ChangeNotifier {
     }
   }
 
-    Future<List<Map<String, dynamic>>> getHouseholdMemberCounts() async {
+  Future<List<Map<String, dynamic>>> getHouseholdMemberCounts() async {
     try {
       final response = await _dio.get('faithful_registration.api.faithful.get_all_faithfuls');
       if (response.data['status'] == 'success') {
@@ -288,6 +290,7 @@ class ApiService with ChangeNotifier {
       return 0;
     }
   }
+
   Future<Map<String, dynamic>> searchFaithful({required String name}) async {
     try {
       final response = await _dio.get(
@@ -303,7 +306,45 @@ class ApiService with ChangeNotifier {
     }
   }
 
- Future<Map<String, dynamic>> registerFaithful({
+  String _normalizeIncome(String? income) {
+  if (income == null || income.isEmpty) return '';
+  // ignore: unnecessary_string_escapes
+  const incomeMap = {
+    r'<$500': r'<$500',
+    r'$500-$1000': r'$500-$1000',
+    r'$1100-$100000': r'$1100-$100000',
+    r'$10000000+': r'$10000000+',
+  };
+  return incomeMap[income] ?? income;
+}
+
+  String? _encodeFile(File? file, String field) {
+    if (file == null) return null;
+    final bytes = file.readAsBytesSync();
+    const maxFileSize = 5 * 1024 * 1024; // 5MB
+    if (bytes.length > maxFileSize) {
+      throw Exception('$field file size exceeds 5MB limit');
+    }
+    String mimeType;
+    final extension = file.path.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'png':
+        mimeType = 'image/png';
+        break;
+      case 'jpg':
+      case 'jpeg':
+        mimeType = 'image/jpeg';
+        break;
+      case 'pdf':
+        mimeType = 'application/pdf';
+        break;
+      default:
+        throw Exception('Unsupported file type for $field: $extension');
+    }
+    return 'data:$mimeType;base64,${base64Encode(bytes)}';
+  }
+
+  Future<Map<String, dynamic>> registerFaithful({
   required String fullName,
   required String phone,
   String? physicalAddress,
@@ -324,7 +365,9 @@ class ApiService with ChangeNotifier {
   String? gpsLocation,
   String? monthlyHouseholdIncome,
   String? specialNeeds,
-  String? specialNeedsProof,
+  File? specialNeedsProof,
+  File? profileImage,
+  File? nationalIdDocument,
 }) async {
   try {
     final requestData = {
@@ -332,7 +375,7 @@ class ApiService with ChangeNotifier {
         'full_name': fullName,
         'phone': phone,
         if (physicalAddress != null && physicalAddress.isNotEmpty) 'physical_address': physicalAddress,
-        if (numberOfDependants != null) 'number_of_dependants': numberOfDependants, // Back to int
+        if (numberOfDependants != null) 'number_of_dependants': numberOfDependants,
         'email': email,
         'gender': gender,
         'mosque': mosque,
@@ -347,9 +390,15 @@ class ApiService with ChangeNotifier {
         if (occupation != null && occupation.isNotEmpty) 'occupation': occupation,
         if (dateJoinedCommunity != null && dateJoinedCommunity.isNotEmpty) 'date_joined_community': dateJoinedCommunity,
         if (gpsLocation != null && gpsLocation.isNotEmpty) 'gps_coordinates': gpsLocation,
-        if (monthlyHouseholdIncome != null && monthlyHouseholdIncome.isNotEmpty) 'monthly_household_income': monthlyHouseholdIncome,
-        if (specialNeeds != null && specialNeeds.isNotEmpty && specialNeeds != 'No') 'special_needs_details': specialNeeds,
-        if (specialNeedsProof != null && specialNeedsProof.isNotEmpty) 'upload_special_needs_proof': specialNeedsProof,
+        if (monthlyHouseholdIncome != null && monthlyHouseholdIncome.isNotEmpty)
+          'monthly_household_income': _normalizeIncome(monthlyHouseholdIncome),
+        if (specialNeeds != null && specialNeeds.isNotEmpty) 'special_needs': specialNeeds,
+        if (specialNeedsProof != null)
+          'special_needs_proof': _encodeFile(specialNeedsProof, 'Special Needs Proof'),
+        if (profileImage != null)
+          'profile_image': _encodeFile(profileImage, 'Profile Image'),
+        if (nationalIdDocument != null)
+          'national_id_document': _encodeFile(nationalIdDocument, 'National ID Document'),
       }
     };
     print('Register Faithful Request: $requestData');
@@ -368,15 +417,16 @@ class ApiService with ChangeNotifier {
     }
     return {
       'status': 'error',
-      'message': data['message'] ?? 'Registration failed',
+      'message': data['errors']?['description'] ?? data['message'] ?? 'Registration failed',
     };
   } catch (e) {
     if (e is DioException && e.response != null) {
       print('Register Faithful Error: $e');
       print('Server Response: ${e.response?.data}');
+      final errorData = e.response?.data as Map<String, dynamic>?;
       return {
         'status': 'error',
-        'message': e.response?.data['message'] ?? 'Failed to register faithful: ${e.message}',
+        'message': errorData?['errors']?['description'] ?? errorData?['message'] ?? 'Failed to register faithful: ${e.message}',
       };
     }
     print('Register Faithful Error: $e');

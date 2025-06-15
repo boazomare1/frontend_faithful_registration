@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/app_drawer.dart';
 import '../../../../core/widgets/app_bottom_nav.dart';
@@ -9,6 +10,12 @@ import 'households_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  static final GlobalKey<_HomeScreenState> _homeScreenKey = GlobalKey<_HomeScreenState>();
+
+  static void switchToHome() {
+    _homeScreenKey.currentState?._switchToHome();
+  }
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -24,13 +31,24 @@ class _HomeScreenState extends State<HomeScreen> {
     const HouseholdsScreen(),
   ];
 
+  final List<String> _tabPaths = ['/home', '/register-faithful', '/mosques', '/households'];
+
   void _onNavTap(int index) {
-    setState(() => _selectedIndex = index);
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  void _switchToHome() {
+    setState(() {
+      _selectedIndex = 0; // Switch to Home tab
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: HomeScreen._homeScreenKey,
       appBar: AppBar(
         title: const Text(
           'Salam App',
