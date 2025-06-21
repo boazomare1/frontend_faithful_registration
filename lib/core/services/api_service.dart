@@ -116,6 +116,13 @@ class ApiService with ChangeNotifier {
           'gender': faithfulData['gender'],
           'mosque': faithfulData['mosque'],
           'mosque_name': faithfulData['mosque_name'],
+          'spouse_name': faithfulData['spouse_name'],
+          'place_of_birth': faithfulData['place_of_birth'],
+          'national_id_number': faithfulData['national_id_number'],
+          'age_of_dependants': faithfulData['age_of_dependants'],
+          'number_of_dependants': faithfulData['number_of_dependants'],
+          'special_needs_details': faithfulData['special_needs_details'],
+          'physical_address': faithfulData['physical_address'],
           'marital_status': faithfulData['marital_status'],
           'occupation': faithfulData['occupation'],
           'education_level': faithfulData['education_level'],
@@ -496,7 +503,7 @@ class ApiService with ChangeNotifier {
           if (gpsLocation != null && gpsLocation.isNotEmpty) 'gps_coordinates': gpsLocation,
           if (monthlyHouseholdIncome != null && monthlyHouseholdIncome.isNotEmpty)
             'monthly_household_income': _normalizeIncome(monthlyHouseholdIncome),
-          if (specialNeeds != null && specialNeeds.isNotEmpty) 'special_needs': specialNeeds,
+          if (specialNeeds != null && specialNeeds.isNotEmpty) 'special_needs_details': specialNeeds,
           if (specialNeedsProof != null)
             'special_needs_proof': _encodeFile(specialNeedsProof, 'Special Needs Proof'),
           if (profileImage != null)
@@ -844,7 +851,7 @@ class ApiService with ChangeNotifier {
           if (gpsLocation != null && gpsLocation.isNotEmpty) 'gps_coordinates': gpsLocation,
           if (monthlyHouseholdIncome != null && monthlyHouseholdIncome.isNotEmpty)
             'monthly_household_income': _normalizeIncome(monthlyHouseholdIncome),
-          if (specialNeeds != null && specialNeeds.isNotEmpty) 'special_needs': specialNeeds,
+          if (specialNeeds != null && specialNeeds.isNotEmpty) 'special_needs_details': specialNeeds,
           if (specialNeedsProof != null)
             'special_needs_proof': _encodeFile(specialNeedsProof, 'Special Needs Proof'),
           if (profileImage != null)

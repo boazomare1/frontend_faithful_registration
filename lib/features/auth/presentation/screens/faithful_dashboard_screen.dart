@@ -71,7 +71,7 @@ class _FaithfulDashboardScreenState extends State<FaithfulDashboardScreen> {
     final apiService = Provider.of<ApiService>(context, listen: false);
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['csv'],
+      allowedExtensions: ['csv','xlsx', 'xls'],
     );
     if (result != null && result.files.isNotEmpty) {
       final file = File(result.files.single.path!);
@@ -433,7 +433,7 @@ class _FaithfulDashboardScreenState extends State<FaithfulDashboardScreen> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => FaithfulUpdateScreen(faithful: faithful),
+                                        builder: (_) => FaithfulUpdateScreen(name:faithful['name'] ?? ''),
                                       ),
                                     );
                                   },
