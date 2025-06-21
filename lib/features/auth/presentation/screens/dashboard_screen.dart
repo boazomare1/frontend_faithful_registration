@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -122,8 +121,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   style: const TextStyle(fontFamily: 'Amiri')),
               Text('Household: ${faithful['household_name'] ?? faithful['household'] ?? 'N/A'}',
                   style: const TextStyle(fontFamily: 'Amiri')),
-              Text('Date of Birth: ${faithful['date_of_birth'] ?? 'N/A'}',
-                  style: const TextStyle(fontFamily: 'Amiri')),
               Text('Occupation: ${faithful['occupation'] ?? 'N/A'}', style: const TextStyle(fontFamily: 'Amiri')),
               Text('Education Level: ${faithful['education_level'] ?? 'N/A'}',
                   style: const TextStyle(fontFamily: 'Amiri')),
@@ -170,32 +167,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: members.map((m) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Name: ${m['full_name']}',
-                        style: const TextStyle(fontFamily: 'Amiri', fontWeight: FontWeight.bold),
+            children: members.asMap().entries.expand<Widget>((entry) {
+              final index = entry.key;
+              final m = entry.value as Map<String, dynamic>;
+              final memberWidget = Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'ID: ${m['name'] ?? 'N/A'}',
+                            style: const TextStyle(fontFamily: 'Amiri'),
+                          ),
+                          Text(
+                            'Name: ${m['full_name'] ?? 'N/A'}',
+                            style: const TextStyle(
+                              fontFamily: 'Amiri',
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Phone: ${m['phone'] ?? 'N/A'}',
+                            style: const TextStyle(fontFamily: 'Amiri'),
+                          ),
+                          Text(
+                            'National ID: ${m['national_id_number'] ?? 'N/A'}',
+                            style: const TextStyle(fontFamily: 'Amiri'),
+                          ),
+                          Text(
+                            'Mosque: ${m['mosque_name'] ?? m['mosque'] ?? 'N/A'}',
+                            style: const TextStyle(fontFamily: 'Amiri'),
+                          ),
+                          Text(
+                            'Marital Status: ${m['marital_status'] ?? 'N/A'}',
+                            style: const TextStyle(fontFamily: 'Amiri'),
+                          ),
+                        ],
                       ),
-                      Text(
-                        'Gender: ${m['gender']}',
-                        style: const TextStyle(fontFamily: 'Amiri'),
-                      ),
-                      Text(
-                        'Date of Birth: ${m['date_of_birth']}',
-                        style: const TextStyle(fontFamily: 'Amiri'),
-                      ),
-                      Text(
-                        'Occupation: ${m['occupation']}',
-                        style: const TextStyle(fontFamily: 'Amiri'),
-                      ),
-                      const Divider(),
-                    ],
+                    ),
+                    _buildImageWidget(m['profile_image'], context),
+                  ],
+                ),
+              );
+              if (index < members.length - 1) {
+                return [
+                  memberWidget,
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4.0),
+                    child: Divider(),
                   ),
-                )).toList(),
+                ];
+              }
+              return [memberWidget];
+            }).toList(),
           ),
         ),
         actions: [
@@ -213,41 +241,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _showHouseholdCounts(BuildContext context) async {
     final apiService = Provider.of<ApiService>(context, listen: false);
-    final counts = await apiService.getHouseholdMemberCounts();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          'Household Member Counts',
-          style: TextStyle(fontFamily: 'Amiri', color: AppColors.primary),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: counts.map((e) => ListTile(
-                  title: Text(
-                    '${e['household_name']} (${e['household']})',
-                    style: const TextStyle(fontFamily: 'Amiri'),
-                  ),
-                  trailing: Text(
-                    '${e['count']} member${e['count'] > 1 ? 's' : ''}',
-                    style: const TextStyle(fontFamily: 'Amiri', color: AppColors.accent),
-                  ),
-                  onTap: () => _showHouseholdMembers(context, e['household_name'], e['members']),
-                )).toList(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Close',
-              style: TextStyle(fontFamily: 'Amiri', color: AppColors.accent),
+    try {
+      final counts = await apiService.getHouseholdMemberCounts();
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text(
+              'Household Member Counts',
+              style: TextStyle(fontFamily: 'Amiri', color: AppColors.primary),
             ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: counts.map((e) => ListTile(
+                      title: Text(
+                        '${e['household_name']} (${e['household']})',
+                        style: const TextStyle(fontFamily: 'Amiri'),
+                      ),
+                      trailing: Text(
+                        '${e['count']} member${e['count'] > 1 ? 's' : ''}',
+                        style: const TextStyle(fontFamily: 'Amiri', color: AppColors.accent),
+                      ),
+                      onTap: () => _showHouseholdMembers(context, e['household_name'], e['members']),
+                    )).toList(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Close',
+                  style: TextStyle(fontFamily: 'Amiri', color: AppColors.accent),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error fetching household counts: $e',
+              style: const TextStyle(fontFamily: 'Amiri'),
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   @override

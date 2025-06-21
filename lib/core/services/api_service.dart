@@ -184,6 +184,13 @@ class ApiService with ChangeNotifier {
             'occupation': faithful['occupation'],
             'education_level': faithful['education_level'],
             'monthly_household_income': faithful['monthly_household_income'],
+            'spouse_name': faithful['spouse_name'],
+            'place_of_birth': faithful['place_of_birth'],
+            'age_of_dependants': faithful['age_of_dependants'],
+            'number_of_dependants': faithful['number_of_dependants'],
+            'special_needs_details': faithful['special_needs_details'],
+            'physical_address': faithful['physical_address'],
+            'national_id_number': faithful['national_id_number'],
             'date_joined_community': faithful['date_joined_community'],
             'gps_coordinates': faithful['gps_coordinates'],
             'profile_image': faithful['profile_image'] != null
@@ -374,45 +381,38 @@ class ApiService with ChangeNotifier {
 
   Future<List<Map<String, dynamic>>> getHouseholdMemberCounts() async {
     try {
-      final response = await _dio.get('faithful_registration.api.faithful.get_all_faithfuls');
-      if (response.data['status'] == 'success') {
-        final data = response.data['data'] as List<dynamic>;
-        final householdMap = <String, Map<String, dynamic>>{};
-        for (var f in data) {
-          final household = f['household'] as String?;
-          if (household != null && household.isNotEmpty) {
-            if (!householdMap.containsKey(household)) {
-              householdMap[household] = {
-                'household_name': f['household_name'] as String? ?? 'Unknown',
-                'count': 0,
-                'members': <Map<String, dynamic>>[],
-              };
-            }
-            householdMap[household]!['count'] = (householdMap[household]!['count'] as int) + 1;
-            householdMap[household]!['members'].add({
-              'full_name': f['full_name'] as String? ?? 'N/A',
-              'gender': f['gender'] as String? ?? 'N/A',
-              'date_of_birth': f['date_of_birth'] as String? ?? 'N/A',
-              'occupation': f['occupation'] as String? ?? 'N/A',
-            });
+      final faithfuls = await getAllFaithfuls();
+      final householdMap = <String, Map<String, dynamic>>{};
+      for (var f in faithfuls) {
+        final household = f['household'] as String?;
+        if (household != null && household.isNotEmpty) {
+          if (!householdMap.containsKey(household)) {
+            householdMap[household] = {
+              'household': household,
+              'household_name': f['household_name'] as String? ?? 'Unknown',
+              'count': 0,
+              'members': <Map<String, dynamic>>[],
+            };
           }
+          householdMap[household]!['count'] = (householdMap[household]!['count'] as int) + 1;
+          householdMap[household]!['members'].add({
+            'name': f['name'] as String? ?? 'N/A',
+            'full_name': f['full_name'] as String? ?? 'N/A',
+            'phone': f['phone'] as String? ?? 'N/A',
+            'national_id_number': f['national_id_number'] as String? ?? 'N/A',
+            'mosque_name': f['mosque_name'] as String? ?? 'N/A',
+            'mosque': f['mosque'] as String? ?? 'N/A',
+            'marital_status': f['marital_status'] as String? ?? 'N/A',
+            'profile_image': f['profile_image'],
+          });
         }
-        return householdMap.entries
-            .map((e) => {
-                  'household': e.key,
-                  'household_name': e.value['household_name'],
-                  'count': e.value['count'],
-                  'members': e.value['members'],
-                })
-            .toList();
       }
-      return [];
+      return householdMap.values.toList();
     } catch (e) {
       print('Get Household Member Counts Error: $e');
       return [];
     }
   }
-
   Future<int> getMosqueCount() async {
     try {
       final response = await _dio.get('faithful_registration.api.mosque.get_all_mosques');
