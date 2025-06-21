@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:io';
 import 'dart:convert';
-//all the imports are necessary for the code to function correctly
+
 class ApiService with ChangeNotifier {
+  static const String baseUrl = 'http://192.168.1.102/api/method/';
+  static const String imageBaseUrl = 'http://192.168.1.102';
   final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: 'http://192.168.1.102/api/method/',
+      baseUrl: baseUrl,
       connectTimeout: const Duration(seconds: 60),
       receiveTimeout: const Duration(seconds: 60),
       headers: {
@@ -18,6 +20,11 @@ class ApiService with ChangeNotifier {
   );
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   String? _sid;
+  final Map<String, String> _householdNameCache = {};
+  final Map<String, String> _mosqueNameCache = {};
+
+  // Public getter for _sid
+  String? get sid => _sid;
 
   ApiService() {
     _init();
@@ -39,7 +46,158 @@ class ApiService with ChangeNotifier {
     notifyListeners();
   }
 
-  // **Existing Authentication Methods (unchanged)**
+  Future<List<Map<String, dynamic>>> searchFaithful({required String name}) async {
+    try {
+      final response = await _dio.get(
+        'faithful_registration.api.faithful.get_faithful',
+        queryParameters: {'full_name': name},
+      );
+      print('Search Faithful Response: ${response.data}');
+      final data = response.data as Map<String, dynamic>;
+      if (data['status'] == 'success' && data['data'] != null) {
+        final faithfulData = data['data'] as List<dynamic>;
+        return faithfulData.map((faithful) {
+          return {
+            'name': faithful['name'],
+            'full_name': faithful['full_name'],
+            'email': faithful['email'],
+            'phone': faithful['phone'],
+            'household': faithful['household'],
+            'household_name': faithful['household_name'],
+            'date_of_birth': faithful['date_of_birth'],
+            'gender': faithful['gender'],
+            'mosque': faithful['mosque'],
+            'mosque_name': faithful['mosque_name'],
+            'marital_status': faithful['marital_status'],
+            'occupation': faithful['occupation'],
+            'education_level': faithful['education_level'],
+            'monthly_household_income': faithful['monthly_household_income'],
+            'date_joined_community': faithful['date_joined_community'],
+            'gps_coordinates': faithful['gps_coordinates'],
+            'profile_image': faithful['profile_image'] != null
+                ? '$imageBaseUrl${faithful['profile_image']}'
+                : null,
+            'national_id_document': faithful['national_id_document'] != null
+                ? '$imageBaseUrl${faithful['national_id_document']}'
+                : null,
+            'special_needs_proof': faithful['special_needs_proof'] != null
+                ? '$imageBaseUrl${faithful['special_needs_proof']}'
+                : null,
+          };
+        }).toList();
+      }
+      return [];
+    } catch (e) {
+      print('Search Faithful Error: $e');
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> searchFaithfulById({required String name}) async {
+    try {
+      final response = await _dio.get(
+        'faithful_registration.api.faithful.get_faithful',
+        queryParameters: {'name': name},
+      );
+      print('Search Faithful By ID Response: ${response.data}');
+      final data = response.data as Map<String, dynamic>;
+      if (data['status'] == 'success' && data['data'] != null) {
+        final faithfulData = data['data'] as Map<String, dynamic>;
+        return {
+          'status': 'success',
+          'message': data['message'] ?? 'Faithful found',
+          'name': faithfulData['name'],
+          'full_name': faithfulData['full_name'],
+          'email': faithfulData['email'],
+          'phone': faithfulData['phone'],
+          'household': faithfulData['household'],
+          'household_name': faithfulData['household_name'],
+          'date_of_birth': faithfulData['date_of_birth'],
+          'gender': faithfulData['gender'],
+          'mosque': faithfulData['mosque'],
+          'mosque_name': faithfulData['mosque_name'],
+          'marital_status': faithfulData['marital_status'],
+          'occupation': faithfulData['occupation'],
+          'education_level': faithfulData['education_level'],
+          'monthly_household_income': faithfulData['monthly_household_income'],
+          'date_joined_community': faithfulData['date_joined_community'],
+          'gps_coordinates': faithfulData['gps_coordinates'],
+          'profile_image': faithfulData['profile_image'] != null
+              ? '$imageBaseUrl${faithfulData['profile_image']}'
+              : null,
+          'national_id_document': faithfulData['national_id_document'] != null
+              ? '$imageBaseUrl${faithfulData['national_id_document']}'
+              : null,
+          'special_needs_proof': faithfulData['special_needs_proof'] != null
+              ? '$imageBaseUrl${faithfulData['special_needs_proof']}'
+              : null,
+        };
+      }
+      return {
+        'status': 'error',
+        'message': data['message'] ?? 'Faithful not found',
+      };
+    } catch (e) {
+      print('Search Faithful By ID Error: $e');
+      return {'status': 'error', 'message': 'Failed to search faithful: $e'};
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAllFaithfuls({
+    String? mosque,
+    String? gender,
+    String? household,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (mosque != null) queryParams['mosque'] = mosque;
+      if (gender != null) queryParams['gender'] = gender;
+      if (household != null) queryParams['household'] = household;
+      final response = await _dio.get(
+        'faithful_registration.api.faithful.get_all_faithfuls',
+        queryParameters: queryParams,
+      );
+      print('Get All Faithfuls Response: ${response.data}');
+      if (response.data['status'] == 'success') {
+        final data = response.data['data'] as List<dynamic>;
+        return data.map((item) {
+          final faithful = item as Map<String, dynamic>;
+          return {
+            'name': faithful['name'],
+            'full_name': faithful['full_name'],
+            'email': faithful['email'],
+            'phone': faithful['phone'],
+            'household': faithful['household'],
+            'household_name': faithful['household_name'],
+            'date_of_birth': faithful['date_of_birth'],
+            'gender': faithful['gender'],
+            'mosque': faithful['mosque'],
+            'mosque_name': faithful['mosque_name'],
+            'marital_status': faithful['marital_status'],
+            'occupation': faithful['occupation'],
+            'education_level': faithful['education_level'],
+            'monthly_household_income': faithful['monthly_household_income'],
+            'date_joined_community': faithful['date_joined_community'],
+            'gps_coordinates': faithful['gps_coordinates'],
+            'profile_image': faithful['profile_image'] != null
+                ? '$imageBaseUrl${faithful['profile_image']}'
+                : null,
+            'national_id_document': faithful['national_id_document'] != null
+                ? '$imageBaseUrl${faithful['national_id_document']}'
+                : null,
+            'special_needs_proof': faithful['special_needs_proof'] != null
+                ? '$imageBaseUrl${faithful['special_needs_proof']}'
+                : null,
+          };
+        }).toList();
+      }
+      return [];
+    } catch (e) {
+      print('Get All Faithfuls Error: $e');
+      return [];
+    }
+  }
+
   Future<Map<String, dynamic>> loginUser({
     required String email,
     required String password,
@@ -117,7 +275,6 @@ class ApiService with ChangeNotifier {
     }
   }
 
-  // **Existing List and Count Methods (unchanged)**
   Future<List<Map<String, dynamic>>> getAllMosques() async {
     try {
       final response = await _dio.get('faithful_registration.api.mosque.get_all_mosques');
@@ -291,21 +448,6 @@ class ApiService with ChangeNotifier {
     }
   }
 
-  Future<Map<String, dynamic>> searchFaithful({required String name}) async {
-    try {
-      final response = await _dio.get(
-        'faithful_registration.api.faithful.get_faithful',
-        queryParameters: {'name': name},
-      );
-      print('Search Faithful Response: ${response.data}');
-      final data = response.data as Map<String, dynamic>;
-      return data['message'] ?? {'status': 'error', 'message': 'Faithful not found'};
-    } catch (e) {
-      print('Search Faithful Error: $e');
-      return {'status': 'error', 'message': 'Failed to search faithful: $e'};
-    }
-  }
-
   Future<Map<String, dynamic>> registerFaithful({
     required String fullName,
     required String phone,
@@ -396,7 +538,6 @@ class ApiService with ChangeNotifier {
     }
   }
 
-  // **New Mosque Operations**
   Future<Map<String, dynamic>> registerMosque({
     required String mosqueName,
     required String location,
@@ -529,7 +670,6 @@ class ApiService with ChangeNotifier {
     }
   }
 
-  // **New Household Operations**
   Future<Map<String, dynamic>> createHousehold({
     required String householdName,
     required String headOfHousehold,
@@ -651,32 +791,6 @@ class ApiService with ChangeNotifier {
     } catch (e) {
       print('Bulk Register Households Error: $e');
       return {'status': 'error', 'message': 'Failed to bulk register households: $e'};
-    }
-  }
-
-  // **New Faithful Operations**
-  Future<List<Map<String, dynamic>>> getAllFaithfuls({
-    String? mosque,
-    String? gender,
-    String? household,
-  }) async {
-    try {
-      final queryParams = <String, String>{};
-      if (mosque != null) queryParams['mosque'] = mosque;
-      if (gender != null) queryParams['gender'] = gender;
-      if (household != null) queryParams['household'] = household;
-      final response = await _dio.get(
-        'faithful_registration.api.faithful.get_all_faithfuls',
-        queryParameters: queryParams,
-      );
-      if (response.data['status'] == 'success') {
-        final data = response.data['data'] as List<dynamic>;
-        return data.isNotEmpty ? data.cast<Map<String, dynamic>>() : [];
-      }
-      return [];
-    } catch (e) {
-      print('Get All Faithfuls Error: $e');
-      return [];
     }
   }
 
@@ -851,7 +965,6 @@ class ApiService with ChangeNotifier {
     }
   }
 
-  // **Helper Methods (unchanged)**
   String _normalizeIncome(String? income) {
     if (income == null || income.isEmpty) return '';
     const incomeMap = {

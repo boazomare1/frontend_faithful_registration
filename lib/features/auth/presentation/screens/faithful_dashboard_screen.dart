@@ -1,18 +1,22 @@
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:salam/core/constants/app_colors.dart';
-import 'package:salam/core/services/api_service.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/services/api_service.dart';
+import 'faithful_registration_screen.dart';
+import 'faithful_update_screen.dart';
 
-class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+class FaithfulDashboardScreen extends StatefulWidget {
+  const FaithfulDashboardScreen({super.key});
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  State<FaithfulDashboardScreen> createState() => _FaithfulDashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _FaithfulDashboardScreenState extends State<FaithfulDashboardScreen> {
   final _searchController = TextEditingController();
   List<Map<String, dynamic>> _searchResults = [];
 
@@ -59,6 +63,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
         setState(() {
           _searchResults = [];
         });
+      }
+    }
+  }
+
+  Future<void> _bulkUploadFaithfuls(BuildContext context) async {
+    final apiService = Provider.of<ApiService>(context, listen: false);
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+    );
+    if (result != null && result.files.isNotEmpty) {
+      final file = File(result.files.single.path!);
+      final response = await apiService.bulkUploadFaithfuls(file: file);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response['message'],
+              style: const TextStyle(fontFamily: 'Amiri'),
+            ),
+            backgroundColor: response['status'] == 'success' ? AppColors.accent : Colors.redAccent,
+          ),
+        );
       }
     }
   }
@@ -144,97 +171,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 _buildImageWidget(faithful['special_needs_proof'], context),
               ],
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Close',
-              style: TextStyle(fontFamily: 'Amiri', color: AppColors.accent),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showHouseholdMembers(BuildContext context, String householdName, List<dynamic> members) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Members of $householdName',
-          style: const TextStyle(fontFamily: 'Amiri', color: AppColors.primary),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: members.map((m) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Name: ${m['full_name']}',
-                        style: const TextStyle(fontFamily: 'Amiri', fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Gender: ${m['gender']}',
-                        style: const TextStyle(fontFamily: 'Amiri'),
-                      ),
-                      Text(
-                        'Date of Birth: ${m['date_of_birth']}',
-                        style: const TextStyle(fontFamily: 'Amiri'),
-                      ),
-                      Text(
-                        'Occupation: ${m['occupation']}',
-                        style: const TextStyle(fontFamily: 'Amiri'),
-                      ),
-                      const Divider(),
-                    ],
-                  ),
-                )).toList(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Close',
-              style: TextStyle(fontFamily: 'Amiri', color: AppColors.accent),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showHouseholdCounts(BuildContext context) async {
-    final apiService = Provider.of<ApiService>(context, listen: false);
-    final counts = await apiService.getHouseholdMemberCounts();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          'Household Member Counts',
-          style: TextStyle(fontFamily: 'Amiri', color: AppColors.primary),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: counts.map((e) => ListTile(
-                  title: Text(
-                    '${e['household_name']} (${e['household']})',
-                    style: const TextStyle(fontFamily: 'Amiri'),
-                  ),
-                  trailing: Text(
-                    '${e['count']} member${e['count'] > 1 ? 's' : ''}',
-                    style: const TextStyle(fontFamily: 'Amiri', color: AppColors.accent),
-                  ),
-                  onTap: () => _showHouseholdMembers(context, e['household_name'], e['members']),
-                )).toList(),
           ),
         ),
         actions: [
@@ -372,177 +308,198 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
                 const SizedBox(height: 16),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: FutureBuilder<int>(
-                        future: apiService.getMosqueCount(),
-                        builder: (context, snapshot) {
-                          return DashboardCard(
-                            title: 'Mosques',
-                            count: snapshot.data ?? 0,
-                            icon: Icons.mosque,
-                          );
-                        },
+                    ElevatedButton(
+                      onPressed: () => context.push('/register-faithful'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text(
+                        'Register Faithful',
+                        style: TextStyle(fontFamily: 'Amiri', color: AppColors.primary),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FutureBuilder<int>(
-                        future: apiService.getHouseholdCount(),
-                        builder: (context, snapshot) {
-                          return DashboardCard(
-                            title: 'Households',
-                            count: snapshot.data ?? 0,
-                            icon: Icons.family_restroom,
-                          );
-                        },
+                    ElevatedButton(
+                      onPressed: () => _bulkUploadFaithfuls(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.accent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text(
+                        'Bulk Upload',
+                        style: TextStyle(fontFamily: 'Amiri', color: AppColors.primary),
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FutureBuilder<int>(
-                        future: apiService.getFemaleCount(),
-                        builder: (context, snapshot) {
-                          return DashboardCard(
-                            title: 'Females',
-                            count: snapshot.data ?? 0,
-                            icon: Icons.female,
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FutureBuilder<int>(
-                        future: apiService.getMaleCount(),
-                        builder: (context, snapshot) {
-                          return DashboardCard(
-                            title: 'Males',
-                            count: snapshot.data ?? 0,
-                            icon: Icons.male,
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FutureBuilder<int>(
-                        future: apiService.getWithHouseholdCount(),
-                        builder: (context, snapshot) {
-                          return DashboardCard(
-                            title: 'With Household',
-                            count: snapshot.data ?? 0,
-                            icon: Icons.home,
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FutureBuilder<int>(
-                        future: apiService.getWithoutHouseholdCount(),
-                        builder: (context, snapshot) {
-                          return DashboardCard(
-                            title: 'Without Household',
-                            count: snapshot.data ?? 0,
-                            icon: Icons.person,
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                FutureBuilder<int>(
-                  future: apiService.getFaithfulCount(),
-                  builder: (context, snapshot) {
-                    return DashboardCard(
-                      title: 'All Faithfuls',
-                      count: snapshot.data ?? 0,
-                      icon: Icons.people,
-                      isFullWidth: true,
-                    );
-                  },
                 ),
                 const SizedBox(height: 16),
-                Center(
-                  child: ElevatedButton(
-                    onPressed: () => _showHouseholdCounts(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text(
-                      'View Household Member Counts',
-                      style: TextStyle(fontFamily: 'Amiri', color: AppColors.primary),
-                    ),
+                const Text(
+                  'All Faithfuls',
+                  style: TextStyle(
+                    fontFamily: 'Amiri',
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
+                ),
+                const SizedBox(height: 8),
+                FutureBuilder<List<Map<String, dynamic>>>(
+                  future: apiService.getAllFaithfuls(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator(color: AppColors.accent));
+                    }
+                    if (snapshot.hasError || !snapshot.hasData) {
+                      return const Text(
+                        'Error loading faithfuls',
+                        style: TextStyle(fontFamily: 'Amiri', color: Colors.white),
+                      );
+                    }
+                    final faithfuls = snapshot.data!;
+                    if (faithfuls.isEmpty) {
+                      return const Text(
+                        'No faithfuls found',
+                        style: TextStyle(fontFamily: 'Amiri', color: Colors.white),
+                      );
+                    }
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: faithfuls.length,
+                      itemBuilder: (context, index) {
+                        final faithful = faithfuls[index];
+                        return Card(
+                          color: AppColors.background.withOpacity(0.9),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: ListTile(
+                            leading: _buildImageWidget(faithful['profile_image'], context),
+                            title: Text(
+                              faithful['full_name'] ?? 'N/A',
+                              style: const TextStyle(fontFamily: 'Amiri', color: Colors.white),
+                            ),
+                            subtitle: Text(
+                              'ID: ${faithful['name'] ?? 'N/A'}\nMosque: ${faithful['mosque_name'] ?? faithful['mosque'] ?? 'N/A'}\nHousehold: ${faithful['household_name'] ?? faithful['household'] ?? 'N/A'}',
+                              style: const TextStyle(fontFamily: 'Amiri', color: Colors.white70),
+                            ),
+                            onTap: () async {
+                              try {
+                                final response = await apiService.searchFaithfulById(name: faithful['name']);
+                                if (mounted) {
+                                  if (response['status'] == 'success') {
+                                    _showFaithfulDetails(context, response);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Found: ${response['full_name'] ?? faithful['name']}',
+                                          style: const TextStyle(fontFamily: 'Amiri'),
+                                        ),
+                                        backgroundColor: AppColors.accent,
+                                      ),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          response['message'] ?? 'Failed to load faithful details',
+                                          style: const TextStyle(fontFamily: 'Amiri'),
+                                        ),
+                                        backgroundColor: Colors.redAccent,
+                                      ),
+                                    );
+                                  }
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Error: $e',
+                                        style: const TextStyle(fontFamily: 'Amiri'),
+                                      ),
+                                      backgroundColor: Colors.redAccent,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit, color: AppColors.accent),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => FaithfulUpdateScreen(faithful: faithful),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.redAccent),
+                                  onPressed: () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text(
+                                          'Confirm Deletion',
+                                          style: TextStyle(fontFamily: 'Amiri', color: AppColors.primary),
+                                        ),
+                                        content: Text(
+                                          'Are you sure you want to delete ${faithful['full_name'] ?? 'this faithful'}?',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Amiri'),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context, false),
+                                            child: const Text(
+                                              'Cancel',
+                                              style: TextStyle(fontFamily: 'Amiri', color: AppColors.accent),
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context, true),
+                                            child: const Text(
+                                              'Delete',
+                                              style: TextStyle(fontFamily: 'Amiri', color: Colors.redAccent),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm == true) {
+                                      final response = await apiService.deleteFaithful(name: faithful['name']);
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              response['message'],
+                                              style: const TextStyle(fontFamily: 'Amiri'),
+                                            ),
+                                            backgroundColor: response['status'] == 'success'
+                                                ? AppColors.accent
+                                                : Colors.redAccent,
+                                          ),
+                                        );
+                                        setState(() {}); // Refresh list
+                                      }
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 ),
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class DashboardCard extends StatelessWidget {
-  final String title;
-  final int count;
-  final IconData icon;
-  final bool isFullWidth;
-
-  const DashboardCard({
-    super.key,
-    required this.title,
-    required this.count,
-    required this.icon,
-    this.isFullWidth = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      color: AppColors.background.withOpacity(0.9),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 40, color: AppColors.accent),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(
-                fontFamily: 'Amiri',
-                fontSize: 16,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              '$count',
-              style: const TextStyle(
-                fontFamily: 'Amiri',
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: AppColors.accent,
-              ),
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
         ),
       ),
     );

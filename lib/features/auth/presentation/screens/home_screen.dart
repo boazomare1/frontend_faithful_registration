@@ -4,7 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/app_drawer.dart';
 import '../../../../core/widgets/app_bottom_nav.dart';
 import 'dashboard_screen.dart';
-import 'faithful_registration_screen.dart';
+import 'faithful_dashboard_screen.dart';
 import 'mosques_screen.dart';
 import 'households_screen.dart';
 
@@ -26,12 +26,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _screens = [
     const DashboardScreen(),
-    const FaithfulRegistrationScreen(),
+    const FaithfulDashboardScreen(),
     const MosquesScreen(),
     const HouseholdsScreen(),
   ];
 
-  final List<String> _tabPaths = ['/home', '/register-faithful', '/mosques', '/households'];
+  final List<String> _tabPaths = ['/home', '/faithfuls', '/mosques', '/households'];
 
   void _onNavTap(int index) {
     setState(() {
