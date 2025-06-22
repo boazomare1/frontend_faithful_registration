@@ -238,6 +238,26 @@ class ApiService with ChangeNotifier {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getAllImams() async {
+    try {
+      final response = await _dio.get('faithful_registration.api.imam.get_all_imams');
+      if (response.data['status'] == 'success') {
+        return List<Map<String, dynamic>>.from(response.data['data']).map((imam) {
+          return {
+            'name': imam['name'] as String? ?? 'N/A',
+            'imam_name': imam['imam_name'] as String? ?? 'N/A',
+            'mosque_assigned': imam['mosque_assigned'] as String? ?? 'N/A',
+            'role_in_mosque': imam['role_in_mosque'] as String? ?? 'N/A',
+            'status': imam['status'] as String? ?? 'N/A',
+          };
+        }).toList();
+      }
+      throw Exception(response.data['message'] ?? 'Failed to fetch imams');
+    } catch (e) {
+      throw Exception('Error fetching imams: $e');
+    }
+  }
+
   Future<Map<String, dynamic>> sendOtp({required String email}) async {
     try {
       final response = await _dio.post(
@@ -553,32 +573,37 @@ class ApiService with ChangeNotifier {
     required int totalCapacity,
     required String contactEmail,
     required String contactPhone,
+    String? frontImage,
+    String? backImage,
+    String? madrasaImage,
+    String? insideImage,
+    String? ceilingImage,
+    String? minbarImage,
   }) async {
     try {
-      final requestData = {
-        'data': {
-          'mosque_name': mosqueName,
-          'location': location,
-          'date_established': dateEstablished,
-          'head_imam': headImam,
-          'total_capacity': totalCapacity,
-          'contact_email': contactEmail,
-          'contact_phone': contactPhone,
-        }
-      };
       final response = await _dio.post(
         'faithful_registration.api.mosque.register_mosque',
-        data: requestData,
+        data: {
+          'data': {
+            'mosque_name': mosqueName,
+            'location': location,
+            'date_established': dateEstablished,
+            'head_imam': headImam,
+            'total_capacity': totalCapacity,
+            'contact_email': contactEmail,
+            'contact_phone': contactPhone,
+            'front_image': frontImage,
+            'back_image': backImage,
+            'madrasa_image': madrasaImage,
+            'inside_image': insideImage,
+            'ceiling_image': ceilingImage,
+            'minbar_image': minbarImage,
+          },
+        },
       );
-      final data = response.data as Map<String, dynamic>;
-      return {
-        'status': data['status'] ?? 'error',
-        'message': data['message'] ?? 'Invalid response',
-        'data': data['data'] ?? {},
-      };
+      return response.data;
     } catch (e) {
-      print('Register Mosque Error: $e');
-      return {'status': 'error', 'message': 'Failed to register mosque: $e'};
+      throw Exception('Error registering mosque: $e');
     }
   }
 
@@ -600,6 +625,7 @@ class ApiService with ChangeNotifier {
     }
   }
 
+
   Future<Map<String, dynamic>> updateMosque({
     required String name,
     required String mosqueName,
@@ -609,33 +635,38 @@ class ApiService with ChangeNotifier {
     required int totalCapacity,
     required String contactEmail,
     required String contactPhone,
+    String? frontImage,
+    String? backImage,
+    String? madrasaImage,
+    String? insideImage,
+    String? ceilingImage,
+    String? minbarImage,
   }) async {
     try {
-      final requestData = {
-        'data': {
-          'name': name,
-          'mosque_name': mosqueName,
-          'location': location,
-          'date_established': dateEstablished,
-          'head_imam': headImam,
-          'total_capacity': totalCapacity,
-          'contact_email': contactEmail,
-          'contact_phone': contactPhone,
-        }
-      };
-      final response = await _dio.post(
+      final response = await _dio.put(
         'faithful_registration.api.mosque.update_mosque',
-        data: requestData,
+        data: {
+          'data': {
+            'name': name,
+            'mosque_name': mosqueName,
+            'location': location,
+            'date_established': dateEstablished,
+            'head_imam': headImam,
+            'total_capacity': totalCapacity,
+            'contact_email': contactEmail,
+            'contact_phone': contactPhone,
+            'front_image': frontImage,
+            'back_image': backImage,
+            'madrasa_image': madrasaImage,
+            'inside_image': insideImage,
+            'ceiling_image': ceilingImage,
+            'minbar_image': minbarImage,
+          },
+        },
       );
-      final data = response.data as Map<String, dynamic>;
-      return {
-        'status': data['status'] ?? 'error',
-        'message': data['message'] ?? 'Invalid response',
-        'data': data['data'] ?? {},
-      };
+      return response.data;
     } catch (e) {
-      print('Update Mosque Error: $e');
-      return {'status': 'error', 'message': 'Failed to update mosque: $e'};
+      throw Exception('Error updating mosque: $e');
     }
   }
 

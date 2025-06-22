@@ -175,6 +175,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildImageWidget(m['profile_image'], context),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,7 +211,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ],
                       ),
                     ),
-                    _buildImageWidget(m['profile_image'], context),
+                    
                   ],
                 ),
               );
